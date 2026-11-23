@@ -23,7 +23,7 @@ class WhatsAppOrderNotifier
         }
 
         $orderNumber = (string) ($order->increment_id ?: $order->id);
-        $customerName = trim($order->customer_first_name . ' ' . $order->customer_last_name) ?: 'Cliente';
+        $customerName = trim($order->customer_first_name.' '.$order->customer_last_name) ?: 'Cliente';
         $deliveryDate = now()->addDays((int) config('whatsapp.delivery_days', 3))->format('M j, Y');
 
         if ($this->sendViaGreenApi($recipient, $orderNumber, $customerName, $deliveryDate)) {
@@ -35,11 +35,14 @@ class WhatsAppOrderNotifier
 
     private function message(string $orderNumber, string $customerName, string $deliveryDate): string
     {
-        return "Hi {$customerName},\n\n"
-            . "Thank you for your purchase! Your order number is {$orderNumber}.\n\n"
-            . "We'll start getting your farm fresh groceries ready to ship.\n\n"
-            . "Estimated delivery: {$deliveryDate}.\n\n"
-            . "We will let you know when your order ships.";
+        return "⚠️⚠️⚠️⚠️¡Nueva orden en ConeDepot!⚠️⚠️⚠️⚠️\n\n"
+            ."Agradecemos a {$customerName} por su compra!,\n\n"
+            ."Se completo la orden #{$orderNumber}.\n\n"
+            ."Otro cliente conoquistado.\n\n"
+            ."Por favor, coniaplausos para el equipo!\n\n"
+            ."Preparemos todo con mucho conocimiento.\n\n"
+            ."Entrega estimada: {$deliveryDate}.\n\n"
+            ."Otra venta más, ya somos conocidos en todo el pais!!"
     }
 
     private function sendViaGreenApi(string $recipient, string $orderNumber, string $customerName, string $deliveryDate): bool
@@ -52,9 +55,9 @@ class WhatsAppOrderNotifier
 
         try {
             $response = Http::timeout(15)->post(
-                rtrim($cfg['url'], '/') . '/waInstance' . $cfg['id'] . '/sendMessage/' . $cfg['token'],
+                rtrim($cfg['url'], '/').'/waInstance'.$cfg['id'].'/sendMessage/'.$cfg['token'],
                 [
-                    'chatId' => $cfg['chat_id'] ?: $recipient . '@c.us',
+                    'chatId' => $cfg['chat_id'] ?: $recipient.'@c.us',
                     'message' => $this->message($orderNumber, $customerName, $deliveryDate),
                 ]
             );
@@ -80,8 +83,8 @@ class WhatsAppOrderNotifier
         }
 
         $payload = [
-            'From' => 'whatsapp:' . config('twilio.from'),
-            'To' => 'whatsapp:+' . $recipient,
+            'From' => 'whatsapp:'.config('twilio.from'),
+            'To' => 'whatsapp:+'.$recipient,
         ];
 
         if (config('twilio.content_sid')) {
@@ -103,7 +106,7 @@ class WhatsAppOrderNotifier
             $response = Http::asForm()
                 ->timeout(15)
                 ->withBasicAuth(config('twilio.account_sid'), config('twilio.auth_token'))
-                ->post('https://api.twilio.com/2010-04-01/Accounts/' . config('twilio.account_sid') . '/Messages.json', $payload);
+                ->post('https://api.twilio.com/2010-04-01/Accounts/'.config('twilio.account_sid').'/Messages.json', $payload);
 
             if ($response->failed()) {
                 Log::warning('Twilio WhatsApp order notification failed', ['recipient' => $recipient, 'status' => $response->status(), 'response' => $response->json()]);
