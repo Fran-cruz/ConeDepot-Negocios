@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Services\WhatsAppOrderNotifier;
 use Barryvdh\Debugbar\Facades\Debugbar;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\ParallelTesting;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\ServiceProvider;
@@ -35,6 +37,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen('checkout.order.save.after', function ($order): void {
+            app(WhatsAppOrderNotifier::class)->notify($order);
+        });
+
         ParallelTesting::setUpTestDatabase(function (string $database, int $token) {
             Artisan::call('db:seed');
         });
