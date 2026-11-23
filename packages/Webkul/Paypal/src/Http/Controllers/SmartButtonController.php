@@ -4,6 +4,7 @@ namespace Webkul\Paypal\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Webkul\Checkout\Facades\Cart;
 use Webkul\Paypal\Payment\SmartButton;
 use Webkul\Sales\Models\Order;
@@ -34,6 +35,7 @@ class SmartButtonController extends Controller
         try {
             return response()->json($this->smartButton->createOrder($this->buildRequestBody()));
         } catch (\Exception $e) {
+            Log::error('PayPal create order failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(json_decode($e->getMessage()), 400);
         }
     }
@@ -50,6 +52,7 @@ class SmartButtonController extends Controller
 
             return $this->saveOrder();
         } catch (\Exception $e) {
+            Log::error('PayPal capture order failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(json_decode($e->getMessage()), 400);
         }
     }
@@ -93,28 +96,31 @@ class SmartButtonController extends Controller
             'purchase_units' => [
                 [
                     'amount' => [
-                        'value' => $this->smartButton->formatCurrencyValue((float) $cart->sub_total + $cart->tax_total + ($cart->selected_shipping_rate ? $cart->selected_shipping_rate->price : 0) - $cart->discount_amount),
-                        'currency_code' => $cart->cart_currency_code,
+                        'value' => $this->paypalAmount(
+                            (float) $cart->sub_total + $cart->tax_total + ($cart->selected_shipping_rate ? $cart->selected_shipping_rate->price : 0) - $cart->discount_amount,
+                            $cart
+                        ),
+                        'currency_code' => core()->getBaseCurrencyCode(),
 
                         'breakdown' => [
                             'item_total' => [
-                                'currency_code' => $cart->cart_currency_code,
-                                'value' => $this->smartButton->formatCurrencyValue((float) $cart->sub_total),
+                                'currency_code' => core()->getBaseCurrencyCode(),
+                                'value' => $this->paypalAmount((float) $cart->sub_total, $cart),
                             ],
 
                             'shipping' => [
-                                'currency_code' => $cart->cart_currency_code,
-                                'value' => $this->smartButton->formatCurrencyValue((float) ($cart->selected_shipping_rate ? $cart->selected_shipping_rate->price : 0)),
+                                'currency_code' => core()->getBaseCurrencyCode(),
+                                'value' => $this->paypalAmount((float) ($cart->selected_shipping_rate ? $cart->selected_shipping_rate->price : 0), $cart),
                             ],
 
                             'tax_total' => [
-                                'currency_code' => $cart->cart_currency_code,
-                                'value' => $this->smartButton->formatCurrencyValue((float) $cart->tax_total),
+                                'currency_code' => core()->getBaseCurrencyCode(),
+                                'value' => $this->paypalAmount((float) $cart->tax_total, $cart),
                             ],
 
                             'discount' => [
-                                'currency_code' => $cart->cart_currency_code,
-                                'value' => $this->smartButton->formatCurrencyValue((float) $cart->discount_amount),
+                                'currency_code' => core()->getBaseCurrencyCode(),
+                                'value' => $this->paypalAmount((float) $cart->discount_amount, $cart),
                             ],
                         ],
                     ],
@@ -170,8 +176,8 @@ class SmartButtonController extends Controller
         foreach ($cart->items as $item) {
             $lineItems[] = [
                 'unit_amount' => [
-                    'currency_code' => $cart->cart_currency_code,
-                    'value' => $this->smartButton->formatCurrencyValue((float) $item->price),
+                    'currency_code' => core()->getBaseCurrencyCode(),
+                    'value' => $this->paypalAmount((float) $item->price, $cart),
                 ],
                 'quantity' => $item->quantity,
                 'name' => $item->name,
@@ -181,6 +187,19 @@ class SmartButtonController extends Controller
         }
 
         return $lineItems;
+    }
+
+    /**
+     * PayPal currently does not accept HNL, so convert the storefront amount
+     * back to the channel base currency (USD in ConeDepot).
+     */
+    protected function paypalAmount(float $amount, $cart): float
+    {
+        return $this->smartButton->formatCurrencyValue(
+            $cart->cart_currency_code === core()->getBaseCurrencyCode()
+                ? $amount
+                : core()->convertToBasePrice($amount, $cart->cart_currency_code)
+        );
     }
 
     /**
