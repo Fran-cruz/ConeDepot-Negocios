@@ -30,6 +30,9 @@ class CustomerRewardService
             ]
         );
 
+        $rule->cart_rule_channels()->syncWithoutDetaching([core()->getCurrentChannel()->id ?? 1]);
+        $rule->cart_rule_customer_groups()->syncWithoutDetaching([1]);
+
         $code = 'CONE10-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
         $coupon = CartRuleCoupon::create([
             'cart_rule_id' => $rule->id, 'code' => $code, 'usage_limit' => 1,
