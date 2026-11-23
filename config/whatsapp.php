@@ -1,11 +1,14 @@
 <?php
 
 return [
-    'enabled' => (bool) env('WHATSAPP_ENABLED', false),
-    'api_version' => env('WHATSAPP_API_VERSION', 'v25.0'),
-    'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
-    'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
-    'admin_phone' => env('WHATSAPP_ADMIN_PHONE'),
-    'template' => env('WHATSAPP_TEMPLATE', 'jaspers_market_order_confirmation_v1'),
-    'template_language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'en_US'),
+    'admin_phone' => env('WHATSAPP_ADMIN_PHONE', env('TWILIO_WHATSAPP_ADMIN_PHONE')),
+    'delivery_days' => (int) env('WHATSAPP_DELIVERY_DAYS', 3),
+
+    'greenapi' => [
+        'enabled' => (bool) env('GREENAPI_ENABLED', false),
+        'url' => env('GREENAPI_URL'),
+        'id' => env('GREENAPI_ID'),
+        'token' => env('GREENAPI_TOKEN'),
+        'chat_id' => env('GREENAPI_CHAT_ID'),
+    ],
 ];
