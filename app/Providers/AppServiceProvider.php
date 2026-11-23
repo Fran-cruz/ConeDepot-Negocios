@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\WhatsAppOrderNotifier;
+use App\Services\CustomerRewardService;
 use Barryvdh\Debugbar\Facades\Debugbar;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event;
@@ -39,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen('checkout.order.save.after', function ($order): void {
             app(WhatsAppOrderNotifier::class)->notify($order);
+            app(CustomerRewardService::class)->issueIfEligible($order);
         });
 
         ParallelTesting::setUpTestDatabase(function (string $database, int $token) {
