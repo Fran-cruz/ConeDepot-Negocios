@@ -11,7 +11,7 @@ class WhatsAppOrderNotifier
 {
     /**
      * Notify the admin about a new order.
-     * Order of attempts: Green API first, Twilio as fallback.
+     * Order of attempts: WhatsApp Cloud API (Meta), then Green API, then Twilio.
      * Never throws, so checkout is not affected.
      */
     public function notify(OrderContract $order): void
@@ -26,6 +26,10 @@ class WhatsAppOrderNotifier
         $customerName = trim($order->customer_first_name.' '.$order->customer_last_name) ?: 'Cliente';
         $deliveryDate = now()->addDays((int) config('whatsapp.delivery_days', 3))->format('M j, Y');
 
+        if ($this->sendViaMeta($recipient, $orderNumber, $customerName, $deliveryDate)) {
+            return;
+        }
+
         if ($this->sendViaGreenApi($recipient, $orderNumber, $customerName, $deliveryDate)) {
             return;
         }
@@ -36,13 +40,68 @@ class WhatsAppOrderNotifier
     private function message(string $orderNumber, string $customerName, string $deliveryDate): string
     {
         return "⚠️⚠️⚠️⚠️¡Nueva orden en ConeDepot!⚠️⚠️⚠️⚠️\n\n"
-            ."Agradecemos a {$customerName} por su compra!,\n\n"
+            ."CONIagradecemos a {$customerName} por su compra!,\n\n"
             ."Se completo la orden #{$orderNumber}.\n\n"
-            ."Otro cliente conoquistado.\n\n"
-            ."Por favor, coniaplausos para el equipo!\n\n"
-            ."Preparemos todo con mucho conocimiento.\n\n"
+            ."Otro cliente CONOquistado.\n\n"
+            ."Por favor, CONIaplausos para el equipo!\n\n"
+            ."Preparemos todo con mucho CONOcimiento.\n\n"
             ."Entrega estimada: {$deliveryDate}.\n\n"
-            ."Otra venta más, ya somos conocidos en todo el pais!!";
+            ."Otra venta más, ya somos CONOcidos en todo el pais!!";
+    }
+
+    private function sendViaMeta(string $recipient, string $orderNumber, string $customerName, string $deliveryDate): bool
+    {
+        $cfg = config('whatsapp.meta');
+
+        if (! $cfg['enabled'] || ! $cfg['phone_number_id'] || ! $cfg['access_token']) {
+            return false;
+        }
+
+        // With a template: Meta fixes the text. Without one: free text (only inside the 24h window).
+        if ($cfg['template']) {
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'to' => $recipient,
+                'type' => 'template',
+                'template' => [
+                    'name' => $cfg['template'],
+                    'language' => ['code' => $cfg['template_language']],
+                    'components' => [[
+                        'type' => 'body',
+                        'parameters' => [
+                            ['type' => 'text', 'text' => $customerName],
+                            ['type' => 'text', 'text' => $orderNumber],
+                            ['type' => 'text', 'text' => $deliveryDate],
+                        ],
+                    ]],
+                ],
+            ];
+        } else {
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'to' => $recipient,
+                'type' => 'text',
+                'text' => ['body' => $this->message($orderNumber, $customerName, $deliveryDate)],
+            ];
+        }
+
+        try {
+            $response = Http::timeout(15)
+                ->withToken($cfg['access_token'])
+                ->post('https://graph.facebook.com/'.$cfg['api_version'].'/'.$cfg['phone_number_id'].'/messages', $payload);
+
+            if ($response->successful() && data_get($response->json(), 'messages.0.id')) {
+                Log::info('WhatsApp Cloud API order notification accepted', ['recipient' => $recipient, 'message_id' => data_get($response->json(), 'messages.0.id')]);
+
+                return true;
+            }
+
+            Log::warning('WhatsApp Cloud API order notification failed, trying Green API', ['status' => $response->status(), 'response' => $response->json()]);
+        } catch (Throwable $e) {
+            Log::warning('WhatsApp Cloud API order notification error, trying Green API', ['error' => $e->getMessage()]);
+        }
+
+        return false;
     }
 
     private function sendViaGreenApi(string $recipient, string $orderNumber, string $customerName, string $deliveryDate): bool
