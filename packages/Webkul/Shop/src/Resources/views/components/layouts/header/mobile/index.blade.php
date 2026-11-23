@@ -152,6 +152,13 @@
                                         </a>
                                     @endif
 
+                                    <a
+                                        class="px-5 py-2 text-base cursor-pointer"
+                                        href="{{ route('shop.customers.account.rewards') }}"
+                                    >
+                                        Recompensas
+                                    </a>
+
                                     <!--Customers logout-->
                                     @auth('customer')
                                         <x-shop::form

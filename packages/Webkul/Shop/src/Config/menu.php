@@ -44,10 +44,16 @@ return [
         'icon' => 'icon-heart',
         'sort' => 6,
     ], [
+        'key' => 'account.rewards',
+        'name' => 'Mis recompensas',
+        'route' => 'shop.customers.account.rewards',
+        'icon' => 'icon-star',
+        'sort' => 7,
+    ], [
         'key' => 'account.gdpr_data_request',
         'name' => 'shop::app.layouts.gdpr-request',
         'route' => 'shop.customers.account.gdpr.index',
         'icon' => 'icon-gdpr-safe',
-        'sort' => 7,
+        'sort' => 8,
     ],
 ];
