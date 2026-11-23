@@ -42,7 +42,7 @@ class WhatsAppOrderNotifier
             ."Por favor, coniaplausos para el equipo!\n\n"
             ."Preparemos todo con mucho conocimiento.\n\n"
             ."Entrega estimada: {$deliveryDate}.\n\n"
-            ."Otra venta más, ya somos conocidos en todo el pais!!"
+            ."Otra venta más, ya somos conocidos en todo el pais!!";
     }
 
     private function sendViaGreenApi(string $recipient, string $orderNumber, string $customerName, string $deliveryDate): bool
