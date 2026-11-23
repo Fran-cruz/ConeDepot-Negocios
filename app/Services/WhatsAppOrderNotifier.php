@@ -41,7 +41,11 @@ class WhatsAppOrderNotifier
                 ],
             ]
         );
-        if ($response->failed()) Log::warning('WhatsApp order notification failed', ['recipient' => $recipient, 'status' => $response->status(), 'response' => $response->json()]);
+        if ($response->failed()) {
+            Log::warning('WhatsApp order notification failed', ['recipient' => $recipient, 'status' => $response->status(), 'response' => $response->json()]);
+        } else {
+            Log::info('WhatsApp order notification accepted', ['recipient' => $recipient, 'message_id' => data_get($response->json(), 'messages.0.id')]);
+        }
     }
 
     private function phone(?string $phone): ?string
