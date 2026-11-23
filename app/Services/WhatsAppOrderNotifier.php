@@ -16,11 +16,16 @@ class WhatsAppOrderNotifier
             $this->phone(config('whatsapp.admin_phone')),
         ]);
         foreach (array_unique($recipients) as $recipient) {
-            $this->send($recipient, (string) ($order->increment_id ?: $order->id), (string) $order->customer_first_name);
+            $this->send(
+                $recipient,
+                (string) ($order->increment_id ?: $order->id),
+                (string) $order->customer_first_name,
+                number_format((float) $order->grand_total, 2, '.', ' ')
+            );
         }
     }
 
-    private function send(string $recipient, string $orderNumber, string $customerName): void
+    private function send(string $recipient, string $orderNumber, string $customerName, string $total): void
     {
         $response = Http::withToken(config('whatsapp.access_token'))->post(
             'https://graph.facebook.com/' . config('whatsapp.api_version') . '/' . config('whatsapp.phone_number_id') . '/messages',
@@ -31,6 +36,7 @@ class WhatsAppOrderNotifier
                     'components' => [['type' => 'body', 'parameters' => [
                         ['type' => 'text', 'text' => $customerName ?: 'Cliente'],
                         ['type' => 'text', 'text' => $orderNumber],
+                        ['type' => 'text', 'text' => $total],
                     ]]],
                 ],
             ]
